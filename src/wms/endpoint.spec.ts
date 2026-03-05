@@ -4,6 +4,8 @@ import capabilities130 from '../../fixtures/wms/capabilities-brgm-1-3-0.xml';
 import capabilitiesStates from '../../fixtures/wms/capabilities-states-1-3-0.xml';
 // @ts-expect-error ts-migrate(7016)
 import exceptionReportWfs from '../../fixtures/wms/service-exception-report-wfs.xml';
+// @ts-expect-error ts-migrate(7016)
+import describeLayerResponse from '../../fixtures/wms/describelayer-response.xml';
 import WmsEndpoint from './endpoint.js';
 import { useCache } from '../shared/cache.js';
 import { EndpointError, ServiceExceptionError } from '../shared/errors.js';
@@ -412,6 +414,57 @@ describe('WmsEndpoint', () => {
       expect(endpoint.getOperationUrl('GetMap')).toBe(
         'http://geoservices.brgm.fr/geologie?language=fre&'
       );
+    });
+  });
+
+  describe('#describeLayer', () => {
+    beforeEach(() => {
+      globalThis.fetchResponseFactory = (url) => {
+        if (url.indexOf('DescribeLayer') > -1) return describeLayerResponse;
+        return capabilities130;
+      };
+      endpoint = new WmsEndpoint(
+        'https://my.test.service/ogc/wms?service=wms&request=GetMap&aa=bb'
+      );
+    });
+
+    it('returns the layer description for a vector layer', async () => {
+      await endpoint.isReady();
+      const result = await endpoint.describeLayer(
+        'my_workspace:my_vector_layer'
+      );
+      expect(result).toEqual({
+        layerName: 'my_workspace:my_vector_layer',
+        owsType: 'WFS',
+        owsUrl: 'https://my-server.com/wfs?',
+        typeName: 'my_workspace:my_vector_layer',
+      });
+    });
+
+    it('returns the layer description for a raster layer', async () => {
+      await endpoint.isReady();
+      const result = await endpoint.describeLayer(
+        'my_workspace:my_raster_layer'
+      );
+      expect(result).toEqual({
+        layerName: 'my_workspace:my_raster_layer',
+        owsType: 'WCS',
+        owsUrl: 'https://my-server.com/wcs?',
+        typeName: 'my_workspace:my_raster_layer',
+      });
+    });
+
+    it('returns null when the layer is not found in the response', async () => {
+      await endpoint.isReady();
+      const result = await endpoint.describeLayer('nonexistent:layer');
+      expect(result).toBeNull();
+    });
+
+    it('returns null when DescribeLayer is not advertised', async () => {
+      globalThis.fetchResponseFactory = () => capabilitiesStates;
+      endpoint = new WmsEndpoint('https://my.test.service/ogc/wms');
+      await endpoint.isReady();
+      expect(endpoint.describeLayer('usa:states')).toBeNull();
     });
   });
 });
