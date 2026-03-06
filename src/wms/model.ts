@@ -52,7 +52,7 @@ export type WmsLayerFull = {
 
 export type WmsLayerDescription = {
   layerName: string;
-  owsType: string;
+  owsType: 'wcs' | 'wfs';
   owsUrl: string;
   typeName?: string;
 };

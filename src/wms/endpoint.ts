@@ -212,13 +212,13 @@ export default class WmsEndpoint {
    * @param layerName Layer name to describe
    * @return Returns null if the endpoint is not ready or does not advertise DescribeLayer
    */
-  describeLayer(layerName: string): Promise<WmsLayerDescription | null> | null {
+  describeLayer(layerName: string): Promise<WmsLayerDescription | null> {
     if (!this._layers) {
-      return null;
+      return Promise.resolve(null);
     }
     const describeLayerBaseUrl = this.getOperationUrl('DescribeLayer');
     if (!describeLayerBaseUrl) {
-      return null;
+      return Promise.resolve(null);
     }
     return useCache(
       () => {

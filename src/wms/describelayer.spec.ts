@@ -1,40 +1,43 @@
 import { parseDescribeLayerResponse } from './describelayer.js';
 // @ts-expect-error ts-migrate(7016)
-import describeLayerResponse from '../../fixtures/wms/describelayer-response.xml';
+import describeLayerWfs from '../../fixtures/wms/describelayer-wfs.xml';
+// @ts-expect-error ts-migrate(7016)
+import describeLayerWcs from '../../fixtures/wms/describelayer-wcs.xml';
 import { parseXmlString } from '../shared/xml-utils.js';
 
 describe('WMS DescribeLayer', () => {
   describe('parseDescribeLayerResponse', () => {
     it('parses a vector layer description (owsType WFS)', () => {
-      const doc = parseXmlString(describeLayerResponse);
+      const doc = parseXmlString(describeLayerWfs);
       const result = parseDescribeLayerResponse(
         doc,
-        'my_workspace:my_vector_layer'
+        'geodata:geography_vector'
       );
       expect(result).toEqual({
-        layerName: 'my_workspace:my_vector_layer',
-        owsType: 'WFS',
-        owsUrl: 'https://my-server.com/wfs?',
-        typeName: 'my_workspace:my_vector_layer',
+        layerName: 'geodata:geography_vector',
+        owsType: 'wfs',
+        owsUrl: 'https://www.example.com/geoserver/wfs',
+        typeName: 'geodata:geography_vector',
       });
     });
 
     it('parses a raster layer description (owsType WCS)', () => {
-      const doc = parseXmlString(describeLayerResponse);
-      const result = parseDescribeLayerResponse(
-        doc,
-        'my_workspace:my_raster_layer'
-      );
+      const doc = parseXmlString(describeLayerWcs);
+      const result = parseDescribeLayerResponse(doc, 'imagery:ortho_coverage');
       expect(result).toEqual({
-        layerName: 'my_workspace:my_raster_layer',
-        owsType: 'WCS',
-        owsUrl: 'https://my-server.com/wcs?',
-        typeName: 'my_workspace:my_raster_layer',
+        layerName: 'imagery:ortho_coverage',
+        owsType: 'wcs',
+        owsUrl: 'https://www.geodata-service.org/ows/wcs',
+        typeName: 'imagery:ortho_coverage',
       });
     });
 
-    it('returns null when the layer is not found in the response', () => {
-      const doc = parseXmlString(describeLayerResponse);
+    it('returns null when the response contains no layer description', () => {
+      const emptyResponse = `<?xml version="1.0" encoding="UTF-8"?>
+<DescribeLayerResponse xmlns="http://www.opengis.net/sld">
+    <Version>1.1.0</Version>
+</DescribeLayerResponse>`;
+      const doc = parseXmlString(emptyResponse);
       const result = parseDescribeLayerResponse(doc, 'nonexistent:layer');
       expect(result).toBeNull();
     });

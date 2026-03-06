@@ -1,8 +1,8 @@
 import { XmlDocument } from '@rgrove/parse-xml';
 import {
   findChildElement,
-  findChildrenElement,
   getElementAttribute,
+  getElementText,
   getRootElement,
 } from '../shared/xml-utils.js';
 import { WmsLayerDescription } from './model.js';
@@ -19,21 +19,19 @@ export function parseDescribeLayerResponse(
   layerName: string
 ): WmsLayerDescription | null {
   const root = getRootElement(describeLayerDoc);
-  const layerDescriptions = findChildrenElement(root, 'LayerDescription');
-
-  const match = layerDescriptions.find(
-    (el) => getElementAttribute(el, 'name') === layerName
-  );
+  const match = findChildElement(root, 'LayerDescription');
   if (!match) return null;
 
-  const owsType = getElementAttribute(match, 'owsType');
-  const owsUrl =
-    getElementAttribute(match, 'owsURL') || getElementAttribute(match, 'wfs');
+  const owsType = getElementText(
+    findChildElement(match, 'owsType')
+  ) as WmsLayerDescription['owsType'];
+  const onlineResource = findChildElement(match, 'OnlineResource');
+  const owsUrl = getElementAttribute(onlineResource, 'xlink:href');
 
-  const queryEl = findChildElement(match, 'Query');
-  const typeName = queryEl
-    ? getElementAttribute(queryEl, 'typeName')
-    : undefined;
+  const typeNameEl = findChildElement(match, 'TypeName');
+  const typeName =
+    getElementText(findChildElement(typeNameEl, 'FeatureTypeName')) ||
+    getElementText(findChildElement(typeNameEl, 'CoverageTypeName'));
 
   return {
     layerName,

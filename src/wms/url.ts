@@ -59,5 +59,6 @@ export function generateDescribeLayerUrl(
     REQUEST: 'DescribeLayer',
     VERSION: version,
     LAYERS: layerName,
+    SLD_VERSION: '1.1.0',
   });
 }

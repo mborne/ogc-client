@@ -5,7 +5,9 @@ import capabilitiesStates from '../../fixtures/wms/capabilities-states-1-3-0.xml
 // @ts-expect-error ts-migrate(7016)
 import exceptionReportWfs from '../../fixtures/wms/service-exception-report-wfs.xml';
 // @ts-expect-error ts-migrate(7016)
-import describeLayerResponse from '../../fixtures/wms/describelayer-response.xml';
+import describeLayerWfs from '../../fixtures/wms/describelayer-wfs.xml';
+// @ts-expect-error ts-migrate(7016)
+import describeLayerWcs from '../../fixtures/wms/describelayer-wcs.xml';
 import WmsEndpoint from './endpoint.js';
 import { useCache } from '../shared/cache.js';
 import { EndpointError, ServiceExceptionError } from '../shared/errors.js';
@@ -420,7 +422,10 @@ describe('WmsEndpoint', () => {
   describe('#describeLayer', () => {
     beforeEach(() => {
       globalThis.fetchResponseFactory = (url) => {
-        if (url.indexOf('DescribeLayer') > -1) return describeLayerResponse;
+        if (url.indexOf('DescribeLayer') > -1) {
+          if (url.indexOf('imagery') > -1) return describeLayerWcs;
+          return describeLayerWfs;
+        }
         return capabilities130;
       };
       endpoint = new WmsEndpoint(
@@ -430,31 +435,38 @@ describe('WmsEndpoint', () => {
 
     it('returns the layer description for a vector layer', async () => {
       await endpoint.isReady();
-      const result = await endpoint.describeLayer(
-        'my_workspace:my_vector_layer'
-      );
+      const result = await endpoint.describeLayer('geodata:geography_vector');
       expect(result).toEqual({
-        layerName: 'my_workspace:my_vector_layer',
-        owsType: 'WFS',
-        owsUrl: 'https://my-server.com/wfs?',
-        typeName: 'my_workspace:my_vector_layer',
+        layerName: 'geodata:geography_vector',
+        owsType: 'wfs',
+        owsUrl: 'https://www.example.com/geoserver/wfs',
+        typeName: 'geodata:geography_vector',
       });
     });
 
     it('returns the layer description for a raster layer', async () => {
       await endpoint.isReady();
-      const result = await endpoint.describeLayer(
-        'my_workspace:my_raster_layer'
-      );
+      const result = await endpoint.describeLayer('imagery:ortho_coverage');
       expect(result).toEqual({
-        layerName: 'my_workspace:my_raster_layer',
-        owsType: 'WCS',
-        owsUrl: 'https://my-server.com/wcs?',
-        typeName: 'my_workspace:my_raster_layer',
+        layerName: 'imagery:ortho_coverage',
+        owsType: 'wcs',
+        owsUrl: 'https://www.geodata-service.org/ows/wcs',
+        typeName: 'imagery:ortho_coverage',
       });
     });
 
-    it('returns null when the layer is not found in the response', async () => {
+    it('returns null when the response contains no layer description', async () => {
+      const emptyDescribeLayer = `<?xml version="1.0" encoding="UTF-8"?>
+<DescribeLayerResponse xmlns="http://www.opengis.net/sld">
+    <Version>1.1.0</Version>
+</DescribeLayerResponse>`;
+      globalThis.fetchResponseFactory = (url) => {
+        if (url.indexOf('DescribeLayer') > -1) return emptyDescribeLayer;
+        return capabilities130;
+      };
+      endpoint = new WmsEndpoint(
+        'https://my.test.service/ogc/wms?service=wms&request=GetMap&aa=bb'
+      );
       await endpoint.isReady();
       const result = await endpoint.describeLayer('nonexistent:layer');
       expect(result).toBeNull();
@@ -464,7 +476,7 @@ describe('WmsEndpoint', () => {
       globalThis.fetchResponseFactory = () => capabilitiesStates;
       endpoint = new WmsEndpoint('https://my.test.service/ogc/wms');
       await endpoint.isReady();
-      expect(endpoint.describeLayer('usa:states')).toBeNull();
+      await expect(endpoint.describeLayer('usa:states')).resolves.toBeNull();
     });
   });
 });
